@@ -64,4 +64,8 @@ char *_uitoa(unsigned int count);
 char **_realloc(char **ptr, size_t *size);
 char *new_strtok(char *str, const char *delim);
 
+void check_for_path(vars_t *vars);
+int path_execute(char *command, vars_t *vars);
+char *find_path(char **env);
+
 #endif /* SHELL_H */
