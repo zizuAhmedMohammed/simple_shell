@@ -68,4 +68,7 @@ void check_for_path(vars_t *vars);
 int path_execute(char *command, vars_t *vars);
 char *find_path(char **env);
 
+ssize_t _puts(char *str);
+char *_strdup(char *strtodup);
+
 #endif /* SHELL_H */
