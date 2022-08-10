@@ -1,155 +1,157 @@
 #include "shell.h"
 
 /**
- * exitt - exits the shell with or without a return of status n
- * @arv: array of words of the entered line
+ * check_for_builtins - checks if the command is a builtin
+ * @vars: variables
+ * Return: pointer to the function or NULL
  */
-void exitt(char **arv)
+void (*check_for_builtins(vars_t *vars))(vars_t *vars)
 {
-	int i, n;
+	unsigned int i;
+	builtins_t check[] = {
+		{"exit", new_exit},
+		{"env", _env},
+		{"setenv", new_setenv},
+		{"unsetenv", new_unsetenv},
+		{NULL, NULL}
+	};
 
-	if (arv[1])
+	for (i = 0; check[i].f != NULL; i++)
 	{
-		n = _atoi(arv[1]);
-		if (n <= -1)
-			n = 2;
-		freearv(arv);
-		exit(n);
+		if (_strcmpr(vars->av[0], check[i].name) == 0)
+			break;
 	}
-	for (i = 0; arv[i]; i++)
-		free(arv[i]);
-	free(arv);
-	exit(0);
+	if (check[i].f != NULL)
+		check[i].f(vars);
+	return (check[i].f);
 }
 
 /**
- * _atoi - converts a string into an integer
- *@s: pointer to a string
- *Return: the integer
+ * new_exit - exit program
+ * @vars: variables
+ * Return: void
  */
-int _atoi(char *s)
+void new_exit(vars_t *vars)
 {
-	int i, integer, sign = 1;
+	int status;
 
-	i = 0;
-	integer = 0;
-	while (!((s[i] >= '0') && (s[i] <= '9')) && (s[i] != '\0'))
+	if (_strcmpr(vars->av[0], "exit") == 0 && vars->av[1] != NULL)
 	{
-		if (s[i] == '-')
+		status = _atoi(vars->av[1]);
+		if (status == -1)
 		{
-			sign = sign * (-1);
+			vars->status = 2;
+			print_error(vars, ": Illegal number: ");
+			_puts2(vars->av[1]);
+			_puts2("\n");
+			free(vars->commands);
+			vars->commands = NULL;
+			return;
 		}
-		i++;
+		vars->status = status;
 	}
-	while ((s[i] >= '0') && (s[i] <= '9'))
-	{
-		integer = (integer * 10) + (sign * (s[i] - '0'));
-		i++;
-	}
-	return (integer);
+	free(vars->buffer);
+	free(vars->av);
+	free(vars->commands);
+	free_env(vars->env);
+	exit(vars->status);
 }
 
 /**
- * env - prints the current environment
- * @arv: array of arguments
+ * _env - prints the current environment
+ * @vars: struct of variables
+ * Return: void.
  */
-void env(char **arv __attribute__ ((unused)))
+void _env(vars_t *vars)
 {
+	unsigned int i;
 
-	int i;
-
-	for (i = 0; environ[i]; i++)
+	for (i = 0; vars->env[i]; i++)
 	{
-		_puts(environ[i]);
+		_puts(vars->env[i]);
 		_puts("\n");
 	}
-
+	vars->status = 0;
 }
 
 /**
- * _setenv - Initialize a new environment variable, or modify an existing one
- * @arv: array of entered words
+ * new_setenv - create a new environment variable, or edit an existing variable
+ * @vars: pointer to struct of variables
+ *
+ * Return: void
  */
-void _setenv(char **arv)
+void new_setenv(vars_t *vars)
 {
-	int i, j, k;
+	char **key;
+	char *var;
 
-	if (!arv[1] || !arv[2])
+	if (vars->av[1] == NULL || vars->av[2] == NULL)
 	{
-		perror(_getenv("_"));
+		print_error(vars, ": Incorrect number of arguments\n");
+		vars->status = 2;
 		return;
 	}
-
-	for (i = 0; environ[i]; i++)
+	key = find_key(vars->env, vars->av[1]);
+	if (key == NULL)
+		add_key(vars);
+	else
 	{
-		j = 0;
-		if (arv[1][j] == environ[i][j])
+		var = add_value(vars->av[1], vars->av[2]);
+		if (var == NULL)
 		{
-			while (arv[1][j])
-			{
-				if (arv[1][j] != environ[i][j])
-					break;
-
-				j++;
-			}
-			if (arv[1][j] == '\0')
-			{
-				k = 0;
-				while (arv[2][k])
-				{
-					environ[i][j + 1 + k] = arv[2][k];
-					k++;
-				}
-				environ[i][j + 1 + k] = '\0';
-				return;
-			}
+			print_error(vars, NULL);
+			free(vars->buffer);
+			free(vars->commands);
+			free(vars->av);
+			free_env(vars->env);
+			exit(127);
 		}
+		free(*key);
+		*key = var;
 	}
-	if (!environ[i])
-	{
-
-		environ[i] = concat_all(arv[1], "=", arv[2]);
-		environ[i + 1] = '\0';
-
-	}
+	vars->status = 0;
 }
 
 /**
- * _unsetenv - Remove an environment variable
- * @arv: array of entered words
+ * new_unsetenv - remove an environment variable
+ * @vars: pointer to a struct of variables
+ *
+ * Return: void
  */
-void _unsetenv(char **arv)
+void new_unsetenv(vars_t *vars)
 {
-	int i, j;
+	char **key, **newenv;
 
-	if (!arv[1])
+	unsigned int i, j;
+
+	if (vars->av[1] == NULL)
 	{
-		perror(_getenv("_"));
+		print_error(vars, ": Incorrect number of arguments\n");
+		vars->status = 2;
 		return;
 	}
-	for (i = 0; environ[i]; i++)
+	key = find_key(vars->env, vars->av[1]);
+	if (key == NULL)
 	{
-		j = 0;
-		if (arv[1][j] == environ[i][j])
-		{
-			while (arv[1][j])
-			{
-				if (arv[1][j] != environ[i][j])
-					break;
-
-				j++;
-			}
-			if (arv[1][j] == '\0')
-			{
-				free(environ[i]);
-				environ[i] = environ[i + 1];
-				while (environ[i])
-				{
-					environ[i] = environ[i + 1];
-					i++;
-				}
-				return;
-			}
-		}
+		print_error(vars, ": No variable to unset");
+		return;
 	}
+	for (i = 0; vars->env[i] != NULL; i++)
+		;
+	newenv = malloc(sizeof(char *) * i);
+	if (newenv == NULL)
+	{
+		print_error(vars, NULL);
+		vars->status = 127;
+		new_exit(vars);
+	}
+	for (i = 0; vars->env[i] != *key; i++)
+		newenv[i] = vars->env[i];
+	for (j = i + 1; vars->env[j] != NULL; j++, i++)
+		newenv[i] = vars->env[j];
+	newenv[i] = NULL;
+	free(*key);
+	free(vars->env);
+	vars->env = newenv;
+	vars->status = 0;
 }
