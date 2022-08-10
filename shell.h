@@ -3,78 +3,68 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <limits.h>
 #include <signal.h>
+#include <stdarg.h>
+
+/* global variables */
+extern char **environ;
+/* Macros */
+#define BUFF_SIZE 32
 
 /**
- * struct variables - variables
- * @av: command line arguments
- * @buffer: buffer of command
- * @env: environment variables
- * @count: count of commands entered
- * @argv: arguments at opening of shell
- * @status: exit status
- * @commands: commands to execute
- */
-typedef struct variables
-{
-	char **av;
-	char *buffer;
-	char **env;
-	size_t count;
-	char **argv;
-	int status;
-	char **commands;
-} vars_t;
-
-/**
- * struct builtins - struct for the builtin functions
- * @name: name of builtin command
- * @f: function for corresponding builtin
+ * struct builtins - struct for built-in commands
+ * @str: command
+ * @f: function pointer to respective command
  */
 typedef struct builtins
 {
-	char *name;
-	void (*f)(vars_t *);
-} builtins_t;
+	char *str;
+	int (*f)(char **args, char *prgm, int count);
+} builtin_t;
 
-char **make_env(char **env);
-void free_env(char **env);
+/**
+ * struct func_e - struct to store specifier w respective fn
+ * @c: format specifier
+ * @f: fn ptr that takes param of type va_list
+ */
+typedef struct func_e
+{
+	char c;
+	int (*f)(va_list);
+} func_f;
 
-void (*check_for_builtins(vars_t *vars))(vars_t *vars);
-void new_exit(vars_t *vars);
-void _env(vars_t *vars);
-void new_setenv(vars_t *vars);
-void new_unsetenv(vars_t *vars);
-
-void add_key(vars_t *vars);
-char **find_key(char **env, char *key);
-char *add_value(char *key, char *value);
-int _atoi(char *str);
-
-void print_error(vars_t *vars, char *msg);
-void _puts2(char *str);
-char *_uitoa(unsigned int count);
-
-char **tokenize(char *buffer, char *delimiter);
-char **_realloc(char **ptr, size_t *size);
-char *new_strtok(char *str, const char *delim);
-
-void check_for_path(vars_t *vars);
-int path_execute(char *command, vars_t *vars);
-char *find_path(char **env);
-int execute_cwd(vars_t *vars);
-int check_for_dir(char *str);
-
-ssize_t _puts(char *str);
-char *_strdup(char *strtodup);
-int _strcmpr(char *strcmp1, char *strcmp2);
-char *_strcat(char *strc1, char *strc2);
-unsigned int _strlen(char *str);
+/* print prompt, getline and tokenize */
+void _getprompt(void);
+/* ssize_t _getline(char *buff); */
+char *_strcpy(char *dest, char *src);
+char *my_strtok(char *src, char *delims);
+char *_getenv(const char *name);
+int get_index(const char *name);
+char *_strcat(char *dest, char *src);
+int check_slash(char *arg);
+int _strcmp(char *s1, char *s2);
+size_t _strlen(char *s);
+int my_exit(char **args, char *prgm, int count);
+char *copy_path(void);
+void sig_handler(int signum);
+int print_env(char **args, char *prgm, int count);
+int my_cd(char **args, char *prgm, int count);
+int _unsetenv(char **args, char *prgm, int count);
+void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size);
+char **create_env(void);
+void free_env(void);
+int _setenv(char **args, char *prgm, int count);
+void check_comment(char **line);
+int print_str(va_list ap);
+int print_count(va_list ap);
+int _putchar(const char c);
+int handle_specifiers(va_list args, char c);
+int print_error(const char *format, ...);
+void change_pwd(char *name, char *prgm, int count);
+void change_oldpwd(char *prgm, int count);
 
 #endif /* SHELL_H */
