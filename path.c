@@ -1,148 +1,180 @@
 #include "shell.h"
 
-
 /**
- * _getenv - gets the value of the global variable
- * @name: name of the global variable
- * Return: string of value
+ * path_execute - executes a command in the path
+ * @command: full path to the command
+ * @vars: pointer to struct of variables
+ *
+ * Return: 0 on succcess, 1 on failure
  */
-char *_getenv(const char *name)
+int path_execute(char *command, vars_t *vars)
 {
-	int i, j;
-	char *value;
+	pid_t child_pid;
 
-	if (!name)
-		return (NULL);
-	for (i = 0; environ[i]; i++)
+	if (access(command, X_OK) == 0)
 	{
-		j = 0;
-		if (name[j] == environ[i][j])
+		child_pid = fork();
+		if (child_pid == -1)
+			print_error(vars, NULL);
+		if (child_pid == 0)
 		{
-			while (name[j])
-			{
-				if (name[j] != environ[i][j])
-					break;
-
-				j++;
-			}
-			if (name[j] == '\0')
-			{
-				value = (environ[i] + j + 1);
-				return (value);
-			}
+			if (execve(command, vars->av, vars->env) == -1)
+				print_error(vars, NULL);
 		}
+		else
+		{
+			wait(&vars->status);
+			if (WIFEXITED(vars->status))
+				vars->status = WEXITSTATUS(vars->status);
+			else if (WIFSIGNALED(vars->status) && WTERMSIG(vars->status) == SIGINT)
+				vars->status = 130;
+			return (0);
+		}
+		vars->status = 127;
+		return (1);
+	}
+	else
+	{
+		print_error(vars, ": Permission denied\n");
+		vars->status = 126;
 	}
 	return (0);
 }
 
+/**
+ * find_path - finds the PATH variable
+ * @env: array of environment variables
+ *
+ * Return: pointer to the node that contains the PATH, or NULL on failure
+ */
+char *find_path(char **env)
+{
+	char *path = "PATH=";
+	unsigned int i, j;
+
+	for (i = 0; env[i] != NULL; i++)
+	{
+		for (j = 0; j < 5; j++)
+			if (path[j] != env[i][j])
+				break;
+		if (j == 5)
+			break;
+	}
+	return (env[i]);
+
+}
 
 /**
- * add_node_end - adds a new node at the end of a list_t list
- * @head: pointer to pointer to our linked list
- * @str: pointer to string in previous first node
- * Return: address of the new element/node
+ * check_for_path - checks if the command is in the PATH
+ * @vars: variables
+ *
+ * Return: void
  */
-
-list_path *add_node_end(list_path **head, char *str)
+void check_for_path(vars_t *vars)
 {
+	char *path, *path_dup = NULL, *check = NULL;
+	unsigned int i = 0, r = 0;
+	char **path_tokens;
+	struct stat buf;
 
-	list_path *tmp;
-	list_path *new;
-
-	new = malloc(sizeof(list_path));
-
-	if (!new || !str)
-	{
-		return (NULL);
-	}
-
-	new->dir = str;
-
-	new->p = '\0';
-	if (!*head)
-	{
-		*head = new;
-	}
+	if (check_for_dir(vars->av[0]))
+		r = execute_cwd(vars);
 	else
 	{
-		tmp = *head;
-
-		while (tmp->p)
+		path = find_path(vars->env);
+		if (path != NULL)
 		{
-
-			tmp = tmp->p;
+			path_dup = _strdup(path + 5);
+			path_tokens = tokenize(path_dup, ":");
+			for (i = 0; path_tokens && path_tokens[i]; i++, free(check))
+			{
+				check = _strcat(path_tokens[i], vars->av[0]);
+				if (stat(check, &buf) == 0)
+				{
+					r = path_execute(check, vars);
+					free(check);
+					break;
+				}
+			}
+			free(path_dup);
+			if (path_tokens == NULL)
+			{
+				vars->status = 127;
+				new_exit(vars);
+			}
 		}
-
-		tmp->p = new;
-	}
-
-	return (*head);
-}
-
-
-/**
- * linkpath - creates a linked list for path directories
- * @path: string of path value
- * Return: pointer to the created linked list
- */
-list_path *linkpath(char *path)
-{
-	list_path *head = '\0';
-	char *token;
-	char *cpath = _strdup(path);
-
-	token = strtok(cpath, ":");
-	while (token)
-	{
-		head = add_node_end(&head, token);
-		token = strtok(NULL, ":");
-	}
-
-	return (head);
-}
-
-/**
- * _which - finds the pathname of a filename
- * @filename: name of file or command
- * @head: head of linked list of path directories
- * Return: pathname of filename or NULL if no match
- */
-char *_which(char *filename, list_path *head)
-{
-	struct stat st;
-	char *string;
-
-	list_path *tmp = head;
-
-	while (tmp)
-	{
-
-		string = concat_all(tmp->dir, "/", filename);
-		if (stat(string, &st) == 0)
+		if (path == NULL || path_tokens[i] == NULL)
 		{
-			return (string);
+			print_error(vars, ": not found\n");
+			vars->status = 127;
 		}
-		free(string);
-		tmp = tmp->p;
+		free(path_tokens);
 	}
-
-	return (NULL);
+	if (r == 1)
+		new_exit(vars);
 }
 
 /**
- * free_list - frees a list_t
- *@head: pointer to our linked list
+ * execute_cwd - executes the command in the current working directory
+ * @vars: pointer to struct of variables
+ *
+ * Return: 0 on success, 1 on failure
  */
-void free_list(list_path *head)
+int execute_cwd(vars_t *vars)
 {
-	list_path *storage;
+	pid_t child_pid;
+	struct stat buf;
 
-	while (head)
+	if (stat(vars->av[0], &buf) == 0)
 	{
-		storage = head->p;
-		free(head->dir);
-		free(head);
-		head = storage;
+		if (access(vars->av[0], X_OK) == 0)
+		{
+			child_pid = fork();
+			if (child_pid == -1)
+				print_error(vars, NULL);
+			if (child_pid == 0)
+			{
+				if (execve(vars->av[0], vars->av, vars->env) == -1)
+					print_error(vars, NULL);
+			}
+			else
+			{
+				wait(&vars->status);
+				if (WIFEXITED(vars->status))
+					vars->status = WEXITSTATUS(vars->status);
+				else if (WIFSIGNALED(vars->status) && WTERMSIG(vars->status) == SIGINT)
+					vars->status = 130;
+				return (0);
+			}
+			vars->status = 127;
+			return (1);
+		}
+		else
+		{
+			print_error(vars, ": Permission denied\n");
+			vars->status = 126;
+		}
+			return (0);
 	}
+	print_error(vars, ": not found\n");
+	vars->status = 127;
+	return (0);
+}
 
+/**
+ * check_for_dir - checks if the command is a part of a path
+ * @str: command
+ *
+ * Return: 1 on success, 0 on failure
+ */
+int check_for_dir(char *str)
+{
+	unsigned int i;
+
+	for (i = 0; str[i]; i++)
+	{
+		if (str[i] == '/')
+			return (1);
+	}
+	return (0);
 }
