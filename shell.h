@@ -57,4 +57,8 @@ char **find_key(char **env, char *key);
 char *add_value(char *key, char *value);
 int _atoi(char *str);
 
+void print_error(vars_t *vars, char *msg);
+void _puts2(char *str);
+char *_uitoa(unsigned int count);
+
 #endif /* SHELL_H */
