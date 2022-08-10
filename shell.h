@@ -43,6 +43,9 @@ typedef struct builtins
 	void (*f)(vars_t *);
 } builtins_t;
 
+char **make_env(char **env);
+void free_env(char **env);
+
 void (*check_for_builtins(vars_t *vars))(vars_t *vars);
 void new_exit(vars_t *vars);
 void _env(vars_t *vars);
