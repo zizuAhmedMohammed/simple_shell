@@ -23,5 +23,7 @@ typedef struct builtins
 } builtins_t;
 
 void (*check_for_builtins(vars_t *vars))(vars_t *vars);
+void new_exit(vars_t *vars);
+void _env(vars_t *vars);
 
 #endif /* SHELL_H */
