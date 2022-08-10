@@ -1,157 +1,147 @@
 #include "shell.h"
 
 /**
- * check_for_builtins - checks if the command is a builtin
- * @vars: variables
- * Return: pointer to the function or NULL
+ * my_exit - exits shell
+ * @args: ptr to str of args
+ * @prgm: prgm name for print error
+ * @count: count user input for print error
+ * Return: 2 if exit receives invalid arg
  */
-void (*check_for_builtins(vars_t *vars))(vars_t *vars)
+int my_exit(char **args, char *prgm, int count)
 {
-	unsigned int i;
-	builtins_t check[] = {
-		{"exit", new_exit},
-		{"env", _env},
-		{"setenv", new_setenv},
-		{"unsetenv", new_unsetenv},
-		{NULL, NULL}
-	};
+	int num = 0, i = 0;
+	(void) prgm, (void) count;
 
-	for (i = 0; check[i].f != NULL; i++)
+	if (args == NULL || args[1] == NULL)
+		exit(0);
+	while (args[1][i])
 	{
-		if (_strcmpr(vars->av[0], check[i].name) == 0)
+		if (!(args[1][i] >= '0' && args[1][i] <= '9'))
 			break;
+		num *= 10;
+		num += args[1][i] - '0';
+		i++;
 	}
-	if (check[i].f != NULL)
-		check[i].f(vars);
-	return (check[i].f);
+	if (args[1][i] == '\0')
+		exit(num);
+	print_error("%s: %d: exit: Illegal number: %s\n", prgm, count, args[1]);
+	return (2);
 }
 
 /**
- * new_exit - exit program
- * @vars: variables
- * Return: void
+ * print_env - prints environment key-value pairs
+ * @args: ptr to str of args
+ * @prgm: prgm name for print error
+ * @count: count user input for print error
+ * Return: 0 on success, 1 otherwise
  */
-void new_exit(vars_t *vars)
+int print_env(char **args, char *prgm, int count)
 {
-	int status;
+	size_t i = 0;
+	(void) prgm, (void) count;
 
-	if (_strcmpr(vars->av[0], "exit") == 0 && vars->av[1] != NULL)
+	if (args == NULL || args[0] == NULL)
+		exit(EXIT_FAILURE);
+	for ( ; environ[i]; i++)
 	{
-		status = _atoi(vars->av[1]);
-		if (status == -1)
-		{
-			vars->status = 2;
-			print_error(vars, ": Illegal number: ");
-			_puts2(vars->av[1]);
-			_puts2("\n");
-			free(vars->commands);
-			vars->commands = NULL;
-			return;
-		}
-		vars->status = status;
+		write(STDOUT_FILENO, environ[i], _strlen(environ[i]));
+		write(STDOUT_FILENO, "\n", 1);
 	}
-	free(vars->buffer);
-	free(vars->av);
-	free(vars->commands);
-	free_env(vars->env);
-	exit(vars->status);
+	return (0);
 }
-
 /**
- * _env - prints the current environment
- * @vars: struct of variables
- * Return: void.
+ * _unsetenv - removes a var from user environment
+ * @args: ptr to ptr to args
+ * @prgm: prgm name for print error
+ * @count: count user input for print error
+ * Return: -1 if var not found, 0 on success
  */
-void _env(vars_t *vars)
+int _unsetenv(char **args, char *prgm, int count)
 {
-	unsigned int i;
+	int i = get_index(args[1]);
+	(void) prgm, (void) count;
 
-	for (i = 0; vars->env[i]; i++)
+	if (args == NULL || args[1] == NULL || i == -1 || !_strlen(args[1]))
+		return (-1);
+	free(environ[i]);
+	while (environ[i])
 	{
-		_puts(vars->env[i]);
-		_puts("\n");
+		environ[i] = environ[i + 1];
+		i++;
 	}
-	vars->status = 0;
+	return (0);
 }
-
 /**
- * new_setenv - create a new environment variable, or edit an existing variable
- * @vars: pointer to struct of variables
- *
- * Return: void
+ * my_cd - changes directory
+ * @args: ptr to str of args
+ * @prgm: prgm name for print error
+ * @count: count user input for print error
+ * Return: 0 success, 2 on error
  */
-void new_setenv(vars_t *vars)
+int my_cd(char **args, char *prgm, int count)
 {
-	char **key;
-	char *var;
-
-	if (vars->av[1] == NULL || vars->av[2] == NULL)
+	if (args[1] == NULL)
 	{
-		print_error(vars, ": Incorrect number of arguments\n");
-		vars->status = 2;
-		return;
+		change_pwd("OLDPWD", prgm, count);
+		chdir(_getenv("HOME"));
 	}
-	key = find_key(vars->env, vars->av[1]);
-	if (key == NULL)
-		add_key(vars);
+	else if (_strcmp(args[1], "-") == 0)
+	{
+		chdir(_getenv("OLDPWD"));
+		change_oldpwd(prgm, count);
+	}
 	else
 	{
-		var = add_value(vars->av[1], vars->av[2]);
-		if (var == NULL)
+		change_oldpwd(prgm, count);
+		if (chdir(args[1]) == -1)
 		{
-			print_error(vars, NULL);
-			free(vars->buffer);
-			free(vars->commands);
-			free(vars->av);
-			free_env(vars->env);
-			exit(127);
+			print_error("%s: %d: cd: can't cd to %s\n", prgm, count, args[1]);
+			return (2);
 		}
-		free(*key);
-		*key = var;
 	}
-	vars->status = 0;
+	change_pwd("PWD", prgm, count);
+	return (0);
 }
-
 /**
- * new_unsetenv - remove an environment variable
- * @vars: pointer to a struct of variables
- *
- * Return: void
+ * _setenv - sets new environ var, or updates existing
+ * @args: ptr to ptr to args
+ * @prgm: prgm name for print error
+ * @count: count user input for print error
+ * Return: 0
  */
-void new_unsetenv(vars_t *vars)
+int _setenv(char **args, char *prgm, int count)
 {
-	char **key, **newenv;
+	char *buffer;
+	int i = get_index(args[1]), n = sizeof(char *);
+	size_t len1 = 0;
+	(void) prgm, (void) count;
 
-	unsigned int i, j;
-
-	if (vars->av[1] == NULL)
+	if (args[1] && args[2] && args[3])
+		return (-1);
+	if (args[1] == NULL)
+		return (print_env(args, prgm, count));
+	while (environ[len1])
+		len1++;
+	buffer = malloc((_strlen(args[1]) + _strlen(args[2]) + 2));
+	if (buffer == NULL)
+		exit(EXIT_FAILURE);
+	_strcpy(buffer, args[1]);
+	_strcat(buffer, "=");
+	if (args[2])
+		_strcat(buffer, args[2]);
+	else
+		_strcat(buffer, " ");
+	if (i >= 0)
 	{
-		print_error(vars, ": Incorrect number of arguments\n");
-		vars->status = 2;
-		return;
+		free(environ[i]);
+		environ[i] = buffer;
 	}
-	key = find_key(vars->env, vars->av[1]);
-	if (key == NULL)
+	else
 	{
-		print_error(vars, ": No variable to unset");
-		return;
+		free(environ[len1]);
+		environ = _realloc(environ, (len1 + 1) * n, (len1 + 2) * n);
+		environ[len1] = buffer;
+		environ[len1 + 1] = NULL;
 	}
-	for (i = 0; vars->env[i] != NULL; i++)
-		;
-	newenv = malloc(sizeof(char *) * i);
-	if (newenv == NULL)
-	{
-		print_error(vars, NULL);
-		vars->status = 127;
-		new_exit(vars);
-	}
-	for (i = 0; vars->env[i] != *key; i++)
-		newenv[i] = vars->env[i];
-	for (j = i + 1; vars->env[j] != NULL; j++, i++)
-		newenv[i] = vars->env[j];
-	newenv[i] = NULL;
-	free(*key);
-	free(vars->env);
-	vars->env = newenv;
-	vars->status = 0;
+	return (0);
 }
