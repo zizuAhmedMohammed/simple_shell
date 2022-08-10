@@ -11,6 +11,7 @@
  */
 static void sig_handler(int uuv)
 {
+	unsigned int sig_flag;
 	(void) uuv;
 	if (sig_flag == 0)
 		_puts("\n$ ");
@@ -28,6 +29,7 @@ static void sig_handler(int uuv)
  */
 int main(int argc __attribute__((unused)), char **argv, char **environment)
 {
+	unsigned int sig_flag;
 	size_t len_buffer = 0;
 	unsigned int is_pipe = 0, i;
 	vars_t vars = {NULL, NULL, NULL, 0, NULL, 0, NULL};
