@@ -1,4 +1,4 @@
-#include "header.h"
+#include "shell.h"
 
 /**
  * get_index - gets index of env var in environ
