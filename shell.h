@@ -61,6 +61,7 @@ void print_error(vars_t *vars, char *msg);
 void _puts2(char *str);
 char *_uitoa(unsigned int count);
 
+char **tokenize(char *buffer, char *delimiter);
 char **_realloc(char **ptr, size_t *size);
 char *new_strtok(char *str, const char *delim);
 
@@ -70,5 +71,6 @@ char *find_path(char **env);
 
 ssize_t _puts(char *str);
 char *_strdup(char *strtodup);
+int _strcmpr(char *strcmp1, char *strcmp2);
 
 #endif /* SHELL_H */
