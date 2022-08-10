@@ -160,3 +160,21 @@ int execute_cwd(vars_t *vars)
 	vars->status = 127;
 	return (0);
 }
+
+/**
+ * check_for_dir - checks if the command is a part of a path
+ * @str: command
+ *
+ * Return: 1 on success, 0 on failure
+ */
+int check_for_dir(char *str)
+{
+	unsigned int i;
+
+	for (i = 0; str[i]; i++)
+	{
+		if (str[i] == '/')
+			return (1);
+	}
+	return (0);
+}
