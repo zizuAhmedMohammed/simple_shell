@@ -1,147 +1,155 @@
 #include "shell.h"
 
 /**
- * my_exit - exits shell
- * @args: ptr to str of args
- * @prgm: prgm name for print error
- * @count: count user input for print error
- * Return: 2 if exit receives invalid arg
+ * exitt - exits the shell with or without a return of status n
+ * @arv: array of words of the entered line
  */
-int my_exit(char **args, char *prgm, int count)
+void exitt(char **arv)
 {
-	int num = 0, i = 0;
-	(void) prgm, (void) count;
+	int i, n;
 
-	if (args == NULL || args[1] == NULL)
-		exit(0);
-	while (args[1][i])
+	if (arv[1])
 	{
-		if (!(args[1][i] >= '0' && args[1][i] <= '9'))
-			break;
-		num *= 10;
-		num += args[1][i] - '0';
-		i++;
+		n = _atoi(arv[1]);
+		if (n <= -1)
+			n = 2;
+		freearv(arv);
+		exit(n);
 	}
-	if (args[1][i] == '\0')
-		exit(num);
-	print_error("%s: %d: exit: Illegal number: %s\n", prgm, count, args[1]);
-	return (2);
+	for (i = 0; arv[i]; i++)
+		free(arv[i]);
+	free(arv);
+	exit(0);
 }
 
 /**
- * print_env - prints environment key-value pairs
- * @args: ptr to str of args
- * @prgm: prgm name for print error
- * @count: count user input for print error
- * Return: 0 on success, 1 otherwise
+ * _atoi - converts a string into an integer
+ *@s: pointer to a string
+ *Return: the integer
  */
-int print_env(char **args, char *prgm, int count)
+int _atoi(char *s)
 {
-	size_t i = 0;
-	(void) prgm, (void) count;
+	int i, integer, sign = 1;
 
-	if (args == NULL || args[0] == NULL)
-		exit(EXIT_FAILURE);
-	for ( ; environ[i]; i++)
+	i = 0;
+	integer = 0;
+	while (!((s[i] >= '0') && (s[i] <= '9')) && (s[i] != '\0'))
 	{
-		write(STDOUT_FILENO, environ[i], _strlen(environ[i]));
-		write(STDOUT_FILENO, "\n", 1);
-	}
-	return (0);
-}
-/**
- * _unsetenv - removes a var from user environment
- * @args: ptr to ptr to args
- * @prgm: prgm name for print error
- * @count: count user input for print error
- * Return: -1 if var not found, 0 on success
- */
-int _unsetenv(char **args, char *prgm, int count)
-{
-	int i = get_index(args[1]);
-	(void) prgm, (void) count;
-
-	if (args == NULL || args[1] == NULL || i == -1 || !_strlen(args[1]))
-		return (-1);
-	free(environ[i]);
-	while (environ[i])
-	{
-		environ[i] = environ[i + 1];
-		i++;
-	}
-	return (0);
-}
-/**
- * my_cd - changes directory
- * @args: ptr to str of args
- * @prgm: prgm name for print error
- * @count: count user input for print error
- * Return: 0 success, 2 on error
- */
-int my_cd(char **args, char *prgm, int count)
-{
-	if (args[1] == NULL)
-	{
-		change_pwd("OLDPWD", prgm, count);
-		chdir(_getenv("HOME"));
-	}
-	else if (_strcmp(args[1], "-") == 0)
-	{
-		chdir(_getenv("OLDPWD"));
-		change_oldpwd(prgm, count);
-	}
-	else
-	{
-		change_oldpwd(prgm, count);
-		if (chdir(args[1]) == -1)
+		if (s[i] == '-')
 		{
-			print_error("%s: %d: cd: can't cd to %s\n", prgm, count, args[1]);
-			return (2);
+			sign = sign * (-1);
+		}
+		i++;
+	}
+	while ((s[i] >= '0') && (s[i] <= '9'))
+	{
+		integer = (integer * 10) + (sign * (s[i] - '0'));
+		i++;
+	}
+	return (integer);
+}
+
+/**
+ * env - prints the current environment
+ * @arv: array of arguments
+ */
+void env(char **arv __attribute__ ((unused)))
+{
+
+	int i;
+
+	for (i = 0; environ[i]; i++)
+	{
+		_puts(environ[i]);
+		_puts("\n");
+	}
+
+}
+
+/**
+ * _setenv - Initialize a new environment variable, or modify an existing one
+ * @arv: array of entered words
+ */
+void _setenv(char **arv)
+{
+	int i, j, k;
+
+	if (!arv[1] || !arv[2])
+	{
+		perror(_getenv("_"));
+		return;
+	}
+
+	for (i = 0; environ[i]; i++)
+	{
+		j = 0;
+		if (arv[1][j] == environ[i][j])
+		{
+			while (arv[1][j])
+			{
+				if (arv[1][j] != environ[i][j])
+					break;
+
+				j++;
+			}
+			if (arv[1][j] == '\0')
+			{
+				k = 0;
+				while (arv[2][k])
+				{
+					environ[i][j + 1 + k] = arv[2][k];
+					k++;
+				}
+				environ[i][j + 1 + k] = '\0';
+				return;
+			}
 		}
 	}
-	change_pwd("PWD", prgm, count);
-	return (0);
-}
-/**
- * _setenv - sets new environ var, or updates existing
- * @args: ptr to ptr to args
- * @prgm: prgm name for print error
- * @count: count user input for print error
- * Return: 0
- */
-int _setenv(char **args, char *prgm, int count)
-{
-	char *buffer;
-	int i = get_index(args[1]), n = sizeof(char *);
-	size_t len1 = 0;
-	(void) prgm, (void) count;
+	if (!environ[i])
+	{
 
-	if (args[1] && args[2] && args[3])
-		return (-1);
-	if (args[1] == NULL)
-		return (print_env(args, prgm, count));
-	while (environ[len1])
-		len1++;
-	buffer = malloc((_strlen(args[1]) + _strlen(args[2]) + 2));
-	if (buffer == NULL)
-		exit(EXIT_FAILURE);
-	_strcpy(buffer, args[1]);
-	_strcat(buffer, "=");
-	if (args[2])
-		_strcat(buffer, args[2]);
-	else
-		_strcat(buffer, " ");
-	if (i >= 0)
-	{
-		free(environ[i]);
-		environ[i] = buffer;
+		environ[i] = concat_all(arv[1], "=", arv[2]);
+		environ[i + 1] = '\0';
+
 	}
-	else
+}
+
+/**
+ * _unsetenv - Remove an environment variable
+ * @arv: array of entered words
+ */
+void _unsetenv(char **arv)
+{
+	int i, j;
+
+	if (!arv[1])
 	{
-		free(environ[len1]);
-		environ = _realloc(environ, (len1 + 1) * n, (len1 + 2) * n);
-		environ[len1] = buffer;
-		environ[len1 + 1] = NULL;
+		perror(_getenv("_"));
+		return;
 	}
-	return (0);
+	for (i = 0; environ[i]; i++)
+	{
+		j = 0;
+		if (arv[1][j] == environ[i][j])
+		{
+			while (arv[1][j])
+			{
+				if (arv[1][j] != environ[i][j])
+					break;
+
+				j++;
+			}
+			if (arv[1][j] == '\0')
+			{
+				free(environ[i]);
+				environ[i] = environ[i + 1];
+				while (environ[i])
+				{
+					environ[i] = environ[i + 1];
+					i++;
+				}
+				return;
+			}
+		}
+	}
 }

@@ -3,68 +3,65 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <stddef.h>
+#include <sys/stat.h>
 #include <signal.h>
-#include <stdarg.h>
 
-/* global variables */
-extern char **environ;
-/* Macros */
-#define BUFF_SIZE 32
+int _putchar(char c);
+void _puts(char *str);
+int _strlen(char *s);
+char *_strdup(char *str);
+char *concat_all(char *name, char *sep, char *value);
 
-/**
- * struct builtins - struct for built-in commands
- * @str: command
- * @f: function pointer to respective command
- */
-typedef struct builtins
-{
-	char *str;
-	int (*f)(char **args, char *prgm, int count);
-} builtin_t;
-
-/**
- * struct func_e - struct to store specifier w respective fn
- * @c: format specifier
- * @f: fn ptr that takes param of type va_list
- */
-typedef struct func_e
-{
-	char c;
-	int (*f)(va_list);
-} func_f;
-
-/* print prompt, getline and tokenize */
-void _getprompt(void);
-/* ssize_t _getline(char *buff); */
-char *_strcpy(char *dest, char *src);
-char *my_strtok(char *src, char *delims);
-char *_getenv(const char *name);
-int get_index(const char *name);
-char *_strcat(char *dest, char *src);
-int check_slash(char *arg);
-int _strcmp(char *s1, char *s2);
-size_t _strlen(char *s);
-int my_exit(char **args, char *prgm, int count);
-char *copy_path(void);
-void sig_handler(int signum);
-int print_env(char **args, char *prgm, int count);
-int my_cd(char **args, char *prgm, int count);
-int _unsetenv(char **args, char *prgm, int count);
+char **splitstring(char *str, const char *delim);
+void execute(char **argv);
 void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size);
-char **create_env(void);
-void free_env(void);
-int _setenv(char **args, char *prgm, int count);
-void check_comment(char **line);
-int print_str(va_list ap);
-int print_count(va_list ap);
-int _putchar(const char c);
-int handle_specifiers(va_list args, char c);
-int print_error(const char *format, ...);
-void change_pwd(char *name, char *prgm, int count);
-void change_oldpwd(char *prgm, int count);
+
+
+extern char **environ;
+
+/**
+ * struct list_path - Linked list containing PATH directories
+ * @dir: directory in path
+ * @p: pointer to next node
+ */
+typedef struct list_path
+{
+	char *dir;
+	struct list_path *p;
+} list_path;
+
+
+char *_getenv(const char *name);
+list_path *add_node_end(list_path **head, char *str);
+list_path *linkpath(char *path);
+char *_which(char *filename, list_path *head);
+
+/**
+ * struct mybuild - pointer to function with corresponding buildin command
+ * @name: buildin command
+ * @func: execute the buildin command
+ */
+typedef struct mybuild
+{
+	char *name;
+	void (*func)(char **);
+} mybuild;
+
+void(*checkbuild(char **arv))(char **arv);
+int _atoi(char *s);
+void exitt(char **arv);
+void env(char **arv);
+void _setenv(char **arv);
+void _unsetenv(char **arv);
+
+void freearv(char **arv);
+void free_list(list_path *head);
+
 
 #endif /* SHELL_H */
