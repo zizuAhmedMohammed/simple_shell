@@ -12,6 +12,27 @@
 #include <signal.h>
 
 /**
+ * struct variables - variables
+ * @av: command line arguments
+ * @buffer: buffer of command
+ * @env: environment variables
+ * @count: count of commands entered
+ * @argv: arguments at opening of shell
+ * @status: exit status
+ * @commands: commands to execute
+ */
+typedef struct variables
+{
+	char **av;
+	char *buffer;
+	char **env;
+	size_t count;
+	char **argv;
+	int status;
+	char **commands;
+} vars_t;
+
+/**
  * struct builtins - struct for the builtin functions
  * @name: name of builtin command
  * @f: function for corresponding builtin
@@ -22,6 +43,9 @@ typedef struct builtins
 	void (*f)(vars_t *);
 } builtins_t;
 
+char **make_env(char **env);
+void free_env(char **env);
+
 void (*check_for_builtins(vars_t *vars))(vars_t *vars);
 void new_exit(vars_t *vars);
 void _env(vars_t *vars);
@@ -30,5 +54,14 @@ void new_unsetenv(vars_t *vars);
 
 void add_key(vars_t *vars);
 char **find_key(char **env, char *key);
+char *add_value(char *key, char *value);
+int _atoi(char *str);
+
+void print_error(vars_t *vars, char *msg);
+void _puts2(char *str);
+char *_uitoa(unsigned int count);
+
+char **_realloc(char **ptr, size_t *size);
+char *new_strtok(char *str, const char *delim);
 
 #endif /* SHELL_H */
