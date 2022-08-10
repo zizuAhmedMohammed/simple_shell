@@ -61,4 +61,7 @@ void print_error(vars_t *vars, char *msg);
 void _puts2(char *str);
 char *_uitoa(unsigned int count);
 
+char **_realloc(char **ptr, size_t *size);
+char *new_strtok(char *str, const char *delim);
+
 #endif /* SHELL_H */
