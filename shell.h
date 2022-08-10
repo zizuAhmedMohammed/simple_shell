@@ -28,4 +28,7 @@ void _env(vars_t *vars);
 void new_setenv(vars_t *vars);
 void new_unsetenv(vars_t *vars);
 
+void add_key(vars_t *vars);
+char **find_key(char **env, char *key);
+
 #endif /* SHELL_H */
