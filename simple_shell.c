@@ -1,89 +1,68 @@
 #include "shell.h"
 
+/* global variable for ^C handling */
+
+
 /**
- * sig_handler - checks if Ctrl C is pressed
- * @sig_num: int
+ * sig_handler - handles ^C signal interupt
+ * @uuv: unused variable (required for signal function prototype)
+ *
+ * Return: void
  */
-void sig_handler(int sig_num)
+static void sig_handler(int uuv)
 {
-	if (sig_num == SIGINT)
-	{
-		_puts("\n#cisfun$ ");
-	}
+	(void) uuv;
+	if (sig_flag == 0)
+		_puts("\n$ ");
+	else
+		_puts("\n");
 }
 
 /**
-* _EOF - handles the End of File
-* @len: return value of getline function
-* @buff: buffer
+ * main - main function for the shell
+ * @argc: number of arguments passed to main
+ * @argv: array of arguments passed to main
+ * @environment: array of environment variables
+ *
+ * Return: 0 or exit status, or ?
  */
-void _EOF(int len, char *buff)
+int main(int argc __attribute__((unused)), char **argv, char **environment)
 {
-	(void)buff;
-	if (len == -1)
-	{
-		if (isatty(STDIN_FILENO))
-		{
-			_puts("\n");
-			free(buff);
-		}
-		exit(0);
-	}
-}
-/**
-  * _isatty - verif if terminal
-  */
+	size_t len_buffer = 0;
+	unsigned int is_pipe = 0, i;
+	vars_t vars = {NULL, NULL, NULL, 0, NULL, 0, NULL};
 
-void _isatty(void)
-{
-	if (isatty(STDIN_FILENO))
-		_puts("#cisfun$ ");
-}
-/**
- * main - Shell
- * Return: 0 on success
- */
-
-int main(void)
-{
-	ssize_t len = 0;
-	char *buff = NULL, *value, *pathname, **arv;
-	size_t size = 0;
-	list_path *head = '\0';
-	void (*f)(char **);
-
+	vars.argv = argv;
+	vars.env = make_env(environment);
 	signal(SIGINT, sig_handler);
-	while (len != EOF)
+	if (!isatty(STDIN_FILENO))
+		is_pipe = 1;
+	if (is_pipe == 0)
+		_puts("$ ");
+	sig_flag = 0;
+	while (getline(&(vars.buffer), &len_buffer, stdin) != -1)
 	{
-		_isatty();
-		len = getline(&buff, &size, stdin);
-		_EOF(len, buff);
-		arv = splitstring(buff, " \n");
-		if (!arv || !arv[0])
-			execute(arv);
-		else
+		sig_flag = 1;
+		vars.count++;
+		vars.commands = tokenize(vars.buffer, ";");
+		for (i = 0; vars.commands && vars.commands[i] != NULL; i++)
 		{
-			value = _getenv("PATH");
-			head = linkpath(value);
-			pathname = _which(arv[0], head);
-			f = checkbuild(arv);
-			if (f)
-			{
-				free(buff);
-				f(arv);
-			}
-			else if (!pathname)
-				execute(arv);
-			else if (pathname)
-			{
-				free(arv[0]);
-				arv[0] = pathname;
-				execute(arv);
-			}
+			vars.av = tokenize(vars.commands[i], "\n \t\r");
+			if (vars.av && vars.av[0])
+				if (check_for_builtins(&vars) == NULL)
+					check_for_path(&vars);
+		free(vars.av);
 		}
+		free(vars.buffer);
+		free(vars.commands);
+		sig_flag = 0;
+		if (is_pipe == 0)
+			_puts("$ ");
+		vars.buffer = NULL;
 	}
-	free_list(head);
-	freearv(arv);
-	free(buff);
-	return (0);
+	if (is_pipe == 0)
+		_puts("\n");
+	free_env(vars.env);
+	free(vars.buffer);
+	exit(vars.status);
 }
