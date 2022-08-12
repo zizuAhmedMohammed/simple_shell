@@ -1,80 +1,83 @@
 #ifndef SHELL_H
 #define SHELL_H
 
+#include <fcntl.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
-#include <limits.h>
-#include <signal.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /**
- * struct variables - variables
- * @av: command line arguments
- * @buffer: buffer of command
- * @env: environment variables
- * @count: count of commands entered
- * @argv: arguments at opening of shell
- * @status: exit status
- * @commands: commands to execute
+ * struct shell_var - Struct shell_var
+ * @code: The exit code of last command
+ * @argc: The argument count of last command
+ * @pid: The shell process id
+ * @env: The environment varibles
+ * @name: The name of this shell
  */
-typedef struct variables
+
+typedef struct shell_var
 {
-	char **av;
-	char *buffer;
+	int code;
+	int argc;
+	pid_t pid;
 	char **env;
-	size_t count;
-	char **argv;
-	int status;
-	char **commands;
-} vars_t;
+	char *name;
+} shell_var_t;
+
+int _strlen(char *str);
+char *_strcat(char *dest, const char *const src, int start);
+char *_strcpy(char *dest, char *src);
+void *_realloc(void *ptr, unsigned int old_size, unsigned int new_size);
+char *_reverse_str(char *str);
+char *_trim_right(char *str);
+char *_trim_left(char *str);
+char *_trim(char *str);
+char *_strdup(char *str);
+int _strcmp(char *s1, char *s2);
+void _freeargs(char **args);
+int execCmd(char *sh, char *cmd, char **args);
+char **parser(char *str, char *delim);
+char *getCmdPath(char *cmd);
+size_t prompt(char **str, int *mode);
 
 /**
- * struct builtins - struct for the builtin functions
- * @name: name of builtin command
- * @f: function for corresponding builtin
+ * struct builtins - Struct builtins
+ * @name: The name of this command
+ * @cmd: The command function
  */
+
 typedef struct builtins
 {
 	char *name;
-	void (*f)(vars_t *);
+	int (*cmd)(char **args);
 } builtins_t;
 
-char **make_env(char **env);
-void free_env(char **env);
-
-ssize_t _puts(char *str);
-char *_strdup(char *strtodup);
-int _strcmpr(char *strcmp1, char *strcmp2);
-char *_strcat(char *strc1, char *strc2);
-unsigned int _strlen(char *str);
-
-char **tokenize(char *buffer, char *delimiter);
-char **_realloc(char **ptr, size_t *size);
-char *new_strtok(char *str, const char *delim);
-
-void (*check_for_builtins(vars_t *vars))(vars_t *vars);
-void new_exit(vars_t *vars);
-void _env(vars_t *vars);
-void new_setenv(vars_t *vars);
-void new_unsetenv(vars_t *vars);
-
-void add_key(vars_t *vars);
-char **find_key(char **env, char *key);
-char *add_value(char *key, char *value);
-int _atoi(char *str);
-
-void check_for_path(vars_t *vars);
-int path_execute(char *command, vars_t *vars);
-char *find_path(char **env);
-int execute_cwd(vars_t *vars);
-int check_for_dir(char *str);
-
-void print_error(vars_t *vars, char *msg);
-void _puts2(char *str);
-char *_uitoa(unsigned int count);
+int _env(char **args __attribute__((unused)));
+int (*get_builtins(char *name))(char **);
+char *_tokenize(char *str, char *delim);
+int get_parsed_size(char *str, char *delim);
+int _strstart(char *s1, char *s2);
+extern char **environ;
+int argsize(char **args);
+int cd(char **args);
+int processcmd(char *str, shell_var_t *var);
+int processCmdSp(char *str, shell_var_t *var);
+int _delimcmp(char *str, char *delim);
+char *getLogicalOp(char *str, int start);
+int processLogical(char *str, shell_var_t *var);
+char *_getenv(char *k);
+int __exit(char **args __attribute__((unused)));
+int _isdigit(int c);
+int _atoi(char *s);
+char *removeComment(char *str);
+char *_itoa(int num);
+int num_len(int num);
+char *replace_var(char *s, shell_var_t *svar);
+char *getVar(char *key, shell_var_t *svar);
+int processFile(char *filename, char **str);
 
 #endif /* SHELL_H */
